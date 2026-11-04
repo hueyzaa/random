@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vòng quay tên ngẫu nhiên</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;color:#edf2ff;background:#0b1021}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 24% 15%,#283b79 0,transparent 35%),radial-gradient(circle at 90% 90%,#3c215e 0,transparent 34%),#0b1021}main{max-width:1150px;margin:auto;padding:38px 22px}h1{font-size:clamp(28px,4vw,44px);margin:0 0 8px}p{color:#b4c0db;margin:0 0 25px}.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,.85fr);gap:26px}.panel{border:1px solid #ffffff20;background:#ffffff0d;backdrop-filter:blur(12px);border-radius:24px;padding:24px;box-shadow:0 16px 50px #0004}.wheel-wrap{position:relative;max-width:570px;margin:0 auto}canvas{display:block;width:100%;height:auto;filter:drop-shadow(0 10px 30px #0007)}.pointer{position:absolute;z-index:2;top:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:19px solid transparent;border-right:19px solid transparent;border-top:39px solid #fff;filter:drop-shadow(0 3px 4px #0008)}.hub{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:62px;height:62px;border-radius:50%;background:#fff;border:8px solid #18244a;box-shadow:0 2px 14px #0006}.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}button{cursor:pointer;border:0;border-radius:12px;padding:13px 20px;font-weight:750;font-size:15px;transition:.15s}button:disabled{opacity:.45;cursor:not-allowed}.primary{flex:1;background:linear-gradient(100deg,#ffe17b,#ff9d63);color:#262039}.secondary{background:#293656;color:white}.secondary:hover{background:#36476f}textarea{width:100%;min-height:260px;resize:vertical;border-radius:14px;background:#0d1733;border:1px solid #4b5882;color:#f6f8ff;font-size:16px;line-height:1.85;padding:15px;outline:none}textarea:focus{border-color:#9eacff}label{font-weight:700;display:block;margin-bottom:10px}.sub{font-size:13px;color:#abbad8;margin:10px 0 20px}.result{margin:20px 0 0;border-radius:14px;background:#1b2a50;padding:20px;text-align:center;min-height:82px}.result b{font-size:29px;display:block;color:#ffe17b;margin-top:4px}.count{float:right;color:#b5c4e8;font-size:13px}@media(max-width:780px){.layout{grid-template-columns:1fr}main{padding:22px 14px}.panel{padding:17px}}
+
+.sound-btn{min-width:125px}
+.modal-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,7,24,.78);backdrop-filter:blur(8px);animation:fadeIn .25s ease}
+.modal-overlay[hidden]{display:none}
+.modal-card{position:relative;width:min(100%,445px);padding:42px 28px 34px;text-align:center;border:1px solid #ffffff38;border-radius:26px;background:linear-gradient(145deg,#263a72,#281d53 85%);box-shadow:0 30px 95px #000a;animation:popIn .45s cubic-bezier(.2,1.6,.3,1)}
+.modal-overline{font-size:17px;font-weight:700;color:#e2e7ff;letter-spacing:.03em}
+.modal-winner{font-weight:850;font-size:clamp(35px,7vw,55px);line-height:1.2;color:#ffde77;overflow-wrap:anywhere;margin:16px 0 28px;text-shadow:0 3px 20px #f1bb5055}
+.modal-close{position:absolute;right:14px;top:12px;background:transparent;color:#d6dcf4;font-size:27px;font-weight:400;padding:3px 12px}
+.modal-ok{width:100%}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes popIn{from{opacity:0;transform:scale(.75) translateY(24px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@media(prefers-reduced-motion:reduce){.modal-overlay,.modal-card{animation:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>Vòng quay may mắn</h1>
+<p>Nhập tên người tham gia, nhấn cập nhật và quay để chọn người chiến thắng.</p>
+<div class="layout">
+<section class="panel">
+<div class="wheel-wrap"><div class="pointer" aria-hidden="true"></div><canvas id="wheel" width="720" height="720" aria-label="Vòng quay chứa tên người tham gia"></canvas><div class="hub"></div></div>
+<div class="actions"><button class="primary" id="spin">BẮT ĐẦU QUAY</button><button class="secondary" id="reset">Đặt lại</button><button class="secondary sound-btn" id="sound" aria-pressed="true">Âm thanh: Bật</button></div>
+<div id="result" class="result" role="status" aria-live="polite">Người trúng sẽ xuất hiện ở đây</div>
+</section>
+<aside class="panel">
+<label for="names">Danh sách người tham gia <span class="count" id="count"></span></label>
+<textarea id="names" spellcheck="false" placeholder="Mỗi dòng một tên...">Gia Mẫn
+Minh Anh
+Hoàng Nam
+Bảo Ngọc
+Tuấn Kiệt
+Khánh Linh</textarea>
+<div class="sub">Mỗi dòng một người. Có thể dán nhiều tên vào cùng lúc.</div>
+<div class="actions"><button class="secondary" id="apply">Cập nhật vòng quay</button><button class="secondary" id="shuffle">Trộn danh sách</button></div>
+</aside>
+</div>
+</main>
+<div class="modal-overlay" id="win-modal" hidden role="dialog" aria-modal="true" aria-labelledby="winner-label" aria-describedby="winner-name">
+ <div class="modal-card">
+  <button class="modal-close" id="close-modal" aria-label="Đóng thông báo">×</button>
+  <div class="modal-overline" id="winner-label">Chúc mừng người trúng thưởng!</div>
+  <div class="modal-winner" id="winner-name"></div>
+  <button class="primary modal-ok" id="modal-ok">Đóng</button>
+ </div>
+</div>
+<script>
+'use strict';
+const canvas=document.getElementById('wheel'),ctx=canvas.getContext('2d');
+const textarea=document.getElementById('names'),spinBtn=document.getElementById('spin'),result=document.getElementById('result');
+const palette=['#675cf6','#e45d97','#e69b3d','#20ab9d','#4576dd','#b360d5','#d85f57','#39956d','#ae72e2','#dc9356'];
+let names=[],rotation=0,spinning=false,rafId=null;
+const tau=Math.PI*2;
+const modal=document.getElementById('win-modal'),winnerName=document.getElementById('winner-name'),soundBtn=document.getElementById('sound');
+let soundOn=true,audioCtx=null;
+function initAudio(){if(!soundOn)return;try{audioCtx ??= new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});}catch(e){soundOn=false;soundBtn.textContent='Âm thanh: Tắt';soundBtn.setAttribute('aria-pressed','false')}}
+function tone(freq,duration=.06,volume=.065,delay=0,type='sine'){
+ if(!soundOn||!audioCtx)return;
+ try{const now=audioCtx.currentTime+delay,osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,now);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(volume,now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);osc.connect(gain).connect(audioCtx.destination);osc.start(now);osc.stop(now+duration+.01)}catch(e){}
+}
+function tickSound(){tone(680,.035,.028,0,'triangle')}
+function winSound(){[[523,0],[659,.13],[784,.26],[1047,.42],[784,.65],[1047,.81]].forEach(([hz,at],i)=>tone(hz,i===5?.45:.22,.105,at,'sine'))}
+function showWin(name){winnerName.textContent=name;modal.hidden=false;document.getElementById('modal-ok').focus();winSound()}
+function closeWin(){modal.hidden=true;spinBtn.focus()}
+document.getElementById('close-modal').addEventListener('click',closeWin);
+document.getElementById('modal-ok').addEventListener('click',closeWin);
+modal.addEventListener('click',e=>{if(e.target===modal)closeWin()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)closeWin()});
+soundBtn.addEventListener('click',()=>{soundOn=!soundOn;soundBtn.textContent=`Âm thanh: ${soundOn?'Bật':'Tắt'}`;soundBtn.setAttribute('aria-pressed',String(soundOn));if(soundOn){initAudio();tone(850,.10,.065)}});
+const normalizedName=s=>s.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi');
+function parseNames(){return textarea.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).slice(0,100)}
+function draw(){
+ const w=canvas.width,c=w/2,r=c-18;ctx.clearRect(0,0,w,w);
+ ctx.save();ctx.translate(c,c);
+ if(!names.length){ctx.beginPath();ctx.arc(0,0,r,0,tau);ctx.fillStyle='#283653';ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 28px system-ui';ctx.fillText('Hãy nhập tên',0,-95);ctx.restore();return}
+ const a=tau/names.length;
+ names.forEach((name,i)=>{
+  const start=-Math.PI/2+rotation+i*a,end=start+a;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,start,end);ctx.closePath();ctx.fillStyle=palette[i%palette.length];ctx.fill();ctx.strokeStyle='#ffffff70';ctx.lineWidth=2;ctx.stroke();
+  const mid=start+a/2;ctx.save();ctx.rotate(mid);ctx.translate(r*.58,0);
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.shadowColor='#0008';ctx.shadowBlur=3;
+  ctx.font=`700 ${Math.max(12,Math.min(25,310/names.length))}px system-ui`;
+  const max= r*.73;let text=name;
+  while(ctx.measureText(text).width>max&&text.length>3)text=text.slice(0,-2)+'…';
+  ctx.fillText(text,0,0);ctx.restore();
+ });
+ ctx.beginPath();ctx.arc(0,0,r,0,tau);ctx.strokeStyle='#e4e9ff';ctx.lineWidth=12;ctx.stroke();ctx.restore();
+}
+function apply(){if(spinning)return;names=parseNames();document.getElementById('count').textContent=`${names.length} người`;rotation=0;result.textContent=names.length?'Sẵn sàng quay!':'Nhập ít nhất một tên để bắt đầu.';draw();}
+function randomInt(max){const buf=new Uint32Array(1);if(window.crypto&&window.crypto.getRandomValues){const threshold=0x100000000-(0x100000000%max);do{window.crypto.getRandomValues(buf)}while(buf[0]>=threshold);return buf[0]%max;}return Math.floor(Math.random()*max)}
+function spin(){if(spinning||!names.length||!modal.hidden)return;initAudio();spinning=true;spinBtn.disabled=true;document.getElementById('apply').disabled=true;document.getElementById('shuffle').disabled=true;result.textContent='Đang quay…';
+ const priority=names.findIndex(n=>normalizedName(n)===normalizedName('Gia Mẫn'));
+ const index=priority>=0?priority:randomInt(names.length);
+ const sector=tau/names.length;
+ // Segment midpoint is at -π/2 + rotation + (index + 0.5) * sector.
+ // Align that midpoint exactly with the pointer at -π/2.
+ const targetMod=((-(index+.5)*sector)%tau+tau)%tau;
+ const currentMod=((rotation%tau)+tau)%tau;
+ const offset=(targetMod-currentMod+tau)%tau;
+ const startRot=rotation,targetRot=rotation+tau*7+offset;
+ const t0=performance.now(),duration=5400;let lastTickSlot=Math.floor(startRot/sector);
+ const ease=t=>1-Math.pow(1-t,5);
+ function tick(now){const p=Math.min(1,(now-t0)/duration);rotation=startRot+(targetRot-startRot)*ease(p);const slot=Math.floor(rotation/sector);if(slot!==lastTickSlot){lastTickSlot=slot;tickSound()}draw();if(p<1){rafId=requestAnimationFrame(tick)}else{rotation=targetRot;spinning=false;spinBtn.disabled=false;document.getElementById('apply').disabled=false;document.getElementById('shuffle').disabled=false;result.innerHTML='Người trúng thưởng:<b></b>';result.querySelector('b').textContent=names[index];showWin(names[index]);}}
+ rafId=requestAnimationFrame(tick);
+}
+document.getElementById('apply').addEventListener('click',apply);
+document.getElementById('shuffle').addEventListener('click',()=>{if(spinning)return;let a=parseNames();for(let i=a.length-1;i>0;i--){const j=randomInt(i+1);[a[i],a[j]]=[a[j],a[i]]}textarea.value=a.join('\n');apply()});
+document.getElementById('reset').addEventListener('click',()=>{if(spinning)return;rotation=0;result.textContent='Sẵn sàng quay!';draw()});
+spinBtn.addEventListener('click',spin);
+apply();
+</script>
+</body>
+</html>
